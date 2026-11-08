@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Directory{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Employee Directory</h1><p class="muted">{{ people | length }} people</p></div>
+</div>
+<form class="filters" method="get">
+  <input type="search" name="q" value="{{ q }}" placeholder="Name, username, title or email">
+  <select name="department">
+    <option value="">All departments</option>
+    {% for d in departments %}<option {{ 'selected' if d == department }}>{{ d }}</option>{% endfor %}
+  </select>
+  <button class="btn" type="submit">Filter</button>
+  {% if q or department %}<a class="btn ghost" href="{{ url_for('directory.index') }}">Reset</a>{% endif %}
+</form>
+<div class="people-grid">
+  {% for p in people %}
+  <a class="person card" href="{{ url_for('directory.profile', user_id=p.id) }}">
+    <span class="avatar" style="background: {{ p.id | avatar_color }}">{{ p.full_name | initials }}</span>
+    <div>
+      <strong>{{ p.full_name }}</strong>
+      <span class="muted">{{ p.title }}</span>
+      <span class="tag">{{ p.department }}</span>
+      <small class="muted">{{ p.email }}{% if p.phone %} · {{ p.phone }}{% endif %}</small>
+    </div>
+  </a>
+  {% else %}
+  <p class="muted">No one matches your search.</p>
+  {% endfor %}
+</div>
+{% endblock %}

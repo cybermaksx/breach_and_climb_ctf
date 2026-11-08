@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ECorpNet{% endblock %} · E Corp</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+</head>
+<body>
+{% if g.user %}
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="{{ url_for('main.dashboard') }}">
+      <span class="logo">E</span><span class="brand-text">ECorpNet</span>
+    </a>
+    {% set ep = request.endpoint or '' %}
+    <nav>
+      <a href="{{ url_for('main.dashboard') }}" class="{{ 'active' if ep.startswith('main.') }}">Dashboard</a>
+      <a href="{{ url_for('directory.index') }}" class="{{ 'active' if ep.startswith('directory.') }}">Directory</a>
+      <a href="{{ url_for('tickets.index') }}" class="{{ 'active' if ep.startswith('tickets.') }}">IT Helpdesk</a>
+      <a href="{{ url_for('documents.index') }}" class="{{ 'active' if ep.startswith('documents.') }}">HR Documents</a>
+      <a href="{{ url_for('wallet.index') }}" class="{{ 'active' if ep.startswith('wallet.') }}">E Coin Wallet</a>
+      {% if g.user.role in ('manager', 'admin') %}
+      <a href="{{ url_for('reports.index') }}" class="{{ 'active' if ep.startswith('reports.') }}">Report Builder</a>
+      {% endif %}
+      {% if g.user.role == 'admin' %}
+      <div class="nav-section">Administration</div>
+      <a href="{{ url_for('admin.index') }}" class="{{ 'active' if ep == 'admin.index' }}">Overview</a>
+      <a href="{{ url_for('admin.users') }}" class="{{ 'active' if ep in ('admin.users', 'admin.edit_user') }}">Users</a>
+      <a href="{{ url_for('admin.announcements') }}" class="{{ 'active' if ep == 'admin.announcements' }}">Announcements</a>
+      <a href="{{ url_for('admin.payroll') }}" class="{{ 'active' if ep == 'admin.payroll' }}">Payroll</a>
+      {% endif %}
+    </nav>
+    <div class="sidebar-foot">Internal use only.<br>All activity is monitored.</div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <form class="search" action="{{ url_for('directory.index') }}">
+        <input type="search" name="q" placeholder="Search people, titles, emails…" aria-label="Search directory">
+      </form>
+      <div class="user-chip">
+        <span class="wallet-pill" title="E Coin balance">{{ g.user.balance | money }} EC</span>
+        <a href="{{ url_for('directory.profile', user_id=g.user.id) }}" class="me">
+          <span class="avatar sm" style="background: {{ g.user.id | avatar_color }}">{{ g.user.full_name | initials }}</span>
+          <span class="me-text"><strong>{{ g.user.full_name }}</strong><small>{{ ROLE_LABELS[g.user.role] }}</small></span>
+        </a>
+        <form method="post" action="{{ url_for('auth.logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn ghost sm" type="submit">Sign out</button>
+        </form>
+      </div>
+    </header>
+    <main class="content">
+      {% include "_flash.html" %}
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="footer">© E Corp · ECorpNet v4.2 · Unauthorized access is prohibited and will be prosecuted.</footer>
+  </div>
+</div>
+{% else %}
+<div class="auth-wrap">
+  {% include "_flash.html" %}
+  {% block auth %}{% endblock %}
+</div>
+{% endif %}
+</body>
+</html>

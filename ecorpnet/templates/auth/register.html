@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Contractor access{% endblock %}
+{% block auth %}
+<div class="auth-card">
+  <div class="auth-brand"><span class="logo lg">E</span><div><h1>Contractor access</h1><p class="muted">Limited ECorpNet account for external partners</p></div></div>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Full name<input name="full_name" required value="{{ form.full_name }}"></label>
+    <label>Company<input name="company" placeholder="e.g. Allsafe Cybersecurity" value="{{ form.company }}"></label>
+    <label>Work email<input name="email" type="email" required value="{{ form.email }}"></label>
+    <label>Username<input name="username" required pattern="[a-z0-9._\-]{3,32}" value="{{ form.username }}"></label>
+    <div class="grid-2">
+      <label>Password<input name="password" type="password" minlength="8" required></label>
+      <label>Confirm<input name="confirm" type="password" minlength="8" required></label>
+    </div>
+    <button class="btn block" type="submit">Create contractor account</button>
+  </form>
+  <p class="auth-alt">Already have an account? <a href="{{ url_for('auth.login') }}">Sign in</a></p>
+</div>
+{% endblock %}

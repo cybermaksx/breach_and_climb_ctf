@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}E Coin Wallet{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>E Coin Wallet</h1><p class="muted">Salaries, bonuses and peer-to-peer transfers in E Coin (EC).</p></div></div>
+<div class="grid-main">
+  <div class="stack">
+    <section class="card wallet-hero">
+      <span class="muted">Available balance</span>
+      <div class="balance">{{ g.user.balance | money }} <small>EC</small></div>
+      <div class="wallet-stats">
+        <div><span class="muted">Received</span><strong class="amount in">+{{ stats.received | money }}</strong></div>
+        <div><span class="muted">Sent</span><strong class="amount out">−{{ stats.sent | money }}</strong></div>
+      </div>
+    </section>
+    <section class="card flush">
+      <div class="card-head pad">
+        <h2>Transaction history</h2>
+        <div class="tabs small">
+          <a href="{{ url_for('wallet.index') }}" class="{{ 'active' if not kind }}">All</a>
+          <a href="{{ url_for('wallet.index', kind='payroll') }}" class="{{ 'active' if kind == 'payroll' }}">Payroll</a>
+          <a href="{{ url_for('wallet.index', kind='transfer') }}" class="{{ 'active' if kind == 'transfer' }}">Transfers</a>
+        </div>
+      </div>
+      <table class="table">
+        <thead><tr><th>Date</th><th>Counterparty</th><th>Type</th><th>Memo</th><th class="right">Amount</th></tr></thead>
+        <tbody>
+          {% for t in history %}
+          {% set incoming = t.recipient_id == g.user.id %}
+          <tr>
+            <td class="muted">{{ t.created_at | short_dt }}</td>
+            <td>{{ (t.sender_name or 'E Corp Treasury') if incoming else t.recipient_name }}</td>
+            <td><span class="tag">{{ t.kind }}</span></td>
+            <td>{{ t.memo }}</td>
+            <td class="right amount {{ 'in' if incoming else 'out' }}">{{ '+' if incoming else '−' }}{{ t.amount | money }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="muted center">No transactions yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+  <aside class="stack">
+    <section class="card">
+      <h2>Send E Coin</h2>
+      <form method="post" action="{{ url_for('wallet.send') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Recipient username<input name="recipient" list="colleagues" required autocomplete="off"></label>
+        <datalist id="colleagues">{% for c in colleagues %}<option value="{{ c.username }}">{{ c.full_name }}</option>{% endfor %}</datalist>
+        <label>Amount (EC)<input name="amount" inputmode="decimal" placeholder="0.00" required></label>
+        <label>Memo<input name="memo" maxlength="140" placeholder="What's it for?"></label>
+        <button class="btn block" type="submit">Send</button>
+      </form>
+    </section>
+    <section class="card">
+      <h2>About E Coin</h2>
+      <p class="muted small">E Coin is E Corp's digital currency. Payroll is credited on the first business day of each month. Transfers between colleagues are instant and irreversible.</p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

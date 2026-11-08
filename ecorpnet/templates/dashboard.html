@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Good day, {{ g.user.full_name.split()[0] }}</h1>
+    <p class="muted">{{ g.user.title }} · {{ g.user.department }}</p>
+  </div>
+  <a class="btn" href="{{ url_for('tickets.new') }}">New IT ticket</a>
+</div>
+
+{% if g.user.role == 'contractor' %}
+<div class="notice">You are signed in with a <strong>contractor</strong> account. Access to internal documents and tools is limited until an E Corp employee sponsors your account.</div>
+{% endif %}
+
+<div class="stats">
+  <a class="stat" href="{{ url_for('wallet.index') }}"><span>E Coin balance</span><strong>{{ g.user.balance | money }} <small>EC</small></strong></a>
+  <a class="stat" href="{{ url_for('tickets.index') }}"><span>My open tickets</span><strong>{{ open_tickets }}</strong></a>
+  <a class="stat" href="{{ url_for('documents.index') }}"><span>Documents available</span><strong>{{ doc_count }}</strong></a>
+  <a class="stat" href="{{ url_for('directory.profile', user_id=g.user.id) }}"><span>Previous sign-in</span><strong class="sm">{{ session.get('prev_login') | short_dt or 'First visit' }}</strong></a>
+</div>
+
+<div class="grid-main">
+  <section class="card">
+    <h2>Announcements</h2>
+    {% for a in announcements %}
+    <article class="announcement {{ 'pinned' if a.pinned }}">
+      <header>
+        {% if a.pinned %}<span class="badge">Pinned</span>{% endif %}
+        <h3>{{ a.title }}</h3>
+      </header>
+      <p>{{ a.body }}</p>
+      <footer class="muted">{{ a.author_name }}, {{ a.author_title }} · {{ a.created_at | short_dt }}</footer>
+    </article>
+    {% else %}
+    <p class="muted">No announcements.</p>
+    {% endfor %}
+  </section>
+
+  <div class="stack">
+    <section class="card">
+      <div class="card-head"><h2>Recent E Coin activity</h2><a href="{{ url_for('wallet.index') }}">View all</a></div>
+      <ul class="tx-list">
+        {% for t in recent_tx %}
+        {% set incoming = t.recipient_id == g.user.id %}
+        <li>
+          <div><strong>{{ (t.sender_name or 'E Corp Treasury') if incoming else t.recipient_name }}</strong>
+            <small class="muted">{{ t.memo or t.kind }}</small></div>
+          <span class="amount {{ 'in' if incoming else 'out' }}">{{ '+' if incoming else '−' }}{{ t.amount | money }}</span>
+        </li>
+        {% else %}
+        <li class="muted">No transactions yet.</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Newest colleagues</h2>
+      <ul class="people-mini">
+        {% for p in new_hires %}
+        <li><a href="{{ url_for('directory.profile', user_id=p.id) }}">
+          <span class="avatar sm" style="background: {{ p.id | avatar_color }}">{{ p.full_name | initials }}</span>
+          <span><strong>{{ p.full_name }}</strong><small class="muted">{{ p.title }}</small></span>
+        </a></li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+</div>
+{% endblock %}

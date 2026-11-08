@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Report Builder{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Report Builder</h1><p class="muted">Generate management reports from ECorpNet data.</p></div></div>
+<div class="grid-main">
+  <section class="card flush">
+    <div class="card-head pad"><h2>Saved reports</h2></div>
+    <table class="table">
+      <thead><tr><th>Title</th><th>Type</th><th>Scope</th><th>Period</th>{% if g.user.role == 'admin' %}<th>Author</th>{% endif %}<th>Created</th></tr></thead>
+      <tbody>
+        {% for r in saved %}
+        <tr>
+          <td><a href="{{ url_for('reports.view', report_id=r.id) }}">{{ r.title }}</a></td>
+          <td>{{ REPORT_TYPES[r.report_type] }}</td>
+          <td>{{ r.department or 'All departments' }}</td>
+          <td class="muted">{{ r.date_from }} → {{ r.date_to }}</td>
+          {% if g.user.role == 'admin' %}<td>{{ r.author_name }}</td>{% endif %}
+          <td class="muted">{{ r.created_at | short_dt }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="muted center">No reports yet. Create one on the right.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  <aside class="card">
+    <h2>New report</h2>
+    <form method="post" action="{{ url_for('reports.create') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Title<input name="title" required maxlength="120" placeholder="Q3 Technology payroll"></label>
+      <label>Report type<select name="report_type">{% for k, v in REPORT_TYPES.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></label>
+      {% if g.user.role == 'admin' %}
+      <label>Department<select name="department"><option value="">All departments</option>{% for d in departments %}<option>{{ d }}</option>{% endfor %}</select></label>
+      {% else %}
+      <p class="muted small">Scope: <strong>{{ g.user.department }}</strong> (your department)</p>
+      {% endif %}
+      <div class="grid-2">
+        <label>From<input type="date" name="date_from" value="{{ default_from }}" required></label>
+        <label>To<input type="date" name="date_to" value="{{ default_to }}" required></label>
+      </div>
+      <label>Notes / executive summary<textarea name="notes" rows="4" placeholder="Shown at the top of the report"></textarea></label>
+      <button class="btn block" type="submit">Generate report</button>
+    </form>
+  </aside>
+</div>
+{% endblock %}

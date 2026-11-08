@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Edit profile{% endblock %}
+{% block content %}
+<div class="page-head"><h1>My profile</h1></div>
+<div class="grid-2">
+  <section class="card">
+    <h2>Contact details</h2>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Phone<input name="phone" value="{{ g.user.phone }}"></label>
+      <label>Office / location<input name="office" value="{{ g.user.office }}"></label>
+      <label>About me<textarea name="bio" rows="5">{{ g.user.bio }}</textarea></label>
+      <button class="btn" type="submit">Save profile</button>
+    </form>
+  </section>
+  <section class="card">
+    <h2>Change password</h2>
+    <form method="post" action="{{ url_for('directory.change_password') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Current password<input name="current" type="password" required></label>
+      <label>New password<input name="new" type="password" minlength="8" required></label>
+      <label>Confirm new password<input name="confirm" type="password" minlength="8" required></label>
+      <button class="btn" type="submit">Update password</button>
+    </form>
+    <p class="muted small">Name, title, department and role are managed by HR. Open an IT ticket to request changes.</p>
+  </section>
+</div>
+{% endblock %}

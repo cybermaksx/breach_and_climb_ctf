@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}IT Helpdesk{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>IT Helpdesk</h1><p class="muted">{{ 'All tickets' if scope == 'all' and g.user.role in ('it', 'admin') else 'Your tickets' }}</p></div>
+  <a class="btn" href="{{ url_for('tickets.new') }}">New ticket</a>
+</div>
+<form class="filters" method="get">
+  {% if g.user.role in ('it', 'admin') %}
+  <select name="scope">
+    <option value="all" {{ 'selected' if scope == 'all' }}>All tickets</option>
+    <option value="assigned" {{ 'selected' if scope == 'assigned' }}>Assigned to me</option>
+    <option value="mine" {{ 'selected' if scope == 'mine' }}>Opened by me</option>
+  </select>
+  {% endif %}
+  <select name="status">
+    <option value="">Any status</option>
+    {% for s in STATUSES %}<option value="{{ s }}" {{ 'selected' if s == status }}>{{ s.replace('_', ' ') | capitalize }}</option>{% endfor %}
+  </select>
+  <button class="btn" type="submit">Filter</button>
+</form>
+<div class="card flush">
+  <table class="table">
+    <thead><tr><th>#</th><th>Subject</th><th>Category</th><th>Priority</th><th>Status</th><th>Requester</th><th>Assignee</th><th>Updated</th></tr></thead>
+    <tbody>
+      {% for t in tickets %}
+      <tr>
+        <td class="muted">{{ t.id }}</td>
+        <td><a href="{{ url_for('tickets.view', ticket_id=t.id) }}">{{ t.subject }}</a></td>
+        <td>{{ t.category }}</td>
+        <td><span class="prio {{ t.priority }}">{{ t.priority }}</span></td>
+        <td><span class="status {{ t.status }}">{{ t.status.replace('_', ' ') }}</span></td>
+        <td>{{ t.author_name }}</td>
+        <td>{{ t.assignee_name or '—' }}</td>
+        <td class="muted">{{ t.updated_at | short_dt }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="muted center">No tickets found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

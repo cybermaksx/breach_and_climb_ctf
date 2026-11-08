@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}New ticket{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>New IT ticket</h1><p class="muted">IT Operations usually responds within one business day.</p></div></div>
+<section class="card narrow">
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Subject<input name="subject" maxlength="200" required value="{{ form.subject }}"></label>
+    <div class="grid-2">
+      <label>Category
+        <select name="category">{% for c in CATEGORIES %}<option {{ 'selected' if c == form.category }}>{{ c }}</option>{% endfor %}</select>
+      </label>
+      <label>Priority
+        <select name="priority">{% for p in PRIORITIES %}<option value="{{ p }}" {{ 'selected' if p == (form.priority or 'normal') }}>{{ p | capitalize }}</option>{% endfor %}</select>
+      </label>
+    </div>
+    <label>Description<textarea name="body" rows="8" required placeholder="What happened? Include hostnames, asset tags and error messages.">{{ form.body }}</textarea></label>
+    <button class="btn" type="submit">Submit ticket</button>
+  </form>
+</section>
+{% endblock %}

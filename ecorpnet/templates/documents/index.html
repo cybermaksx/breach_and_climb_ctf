@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}HR Documents{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>HR Documents</h1><p class="muted">Policies, forms and internal documents available at your clearance level.</p></div>
+  {% if g.user.role in ('manager', 'admin') %}<a class="btn" href="{{ url_for('documents.upload') }}">Upload document</a>{% endif %}
+</div>
+<div class="tabs">
+  <a href="{{ url_for('documents.index') }}" class="{{ 'active' if not category }}">All</a>
+  {% for c in CATEGORIES %}<a href="{{ url_for('documents.index', category=c) }}" class="{{ 'active' if c == category }}">{{ c }}</a>{% endfor %}
+</div>
+<div class="card flush">
+  <table class="table">
+    <thead><tr><th>Document</th><th>Category</th><th>Clearance</th><th>Owner</th><th>Size</th><th>Published</th><th></th></tr></thead>
+    <tbody>
+      {% for d in docs %}
+      <tr>
+        <td><a href="{{ url_for('documents.view', doc_id=d.id) }}"><strong>{{ d.title }}</strong></a><br><small class="muted">{{ d.original_name }}</small></td>
+        <td>{{ d.category }}</td>
+        <td><span class="clearance {{ d.clearance }}">{{ CLEARANCE_LABELS[d.clearance] }}</span></td>
+        <td>{{ d.uploader_name }}</td>
+        <td class="muted">{{ (d.size / 1024) | round(1) }} KB</td>
+        <td class="muted">{{ d.created_at[:10] }}</td>
+        <td><a class="btn ghost sm" href="{{ url_for('documents.download', doc_id=d.id) }}">Download</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="muted center">No documents in this category.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

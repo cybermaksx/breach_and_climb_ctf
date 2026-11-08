@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Users{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>User accounts</h1><p class="muted">{{ users | length }} accounts</p></div></div>
+<div class="card flush">
+  <table class="table">
+    <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Department</th><th>Manager</th><th class="right">Salary (EC)</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for u in users %}
+      <tr class="{{ 'inactive' if not u.is_active }}">
+        <td><strong>{{ u.full_name }}</strong><br><small class="muted">{{ u.title }}</small></td>
+        <td>{{ u.username }}</td>
+        <td><span class="tag">{{ ROLE_LABELS[u.role] }}</span></td>
+        <td>{{ u.department }}</td>
+        <td>{{ u.manager_name or '—' }}</td>
+        <td class="right">{{ '{:,}'.format(u.salary) }}</td>
+        <td>{{ 'Active' if u.is_active else 'Disabled' }}</td>
+        <td><a class="btn ghost sm" href="{{ url_for('admin.edit_user', user_id=u.id) }}">Edit</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

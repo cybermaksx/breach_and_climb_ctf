@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Administration{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Administration</h1><p class="muted">ECorpNet system overview</p></div></div>
+<div class="stats">
+  <a class="stat" href="{{ url_for('admin.users') }}"><span>Active accounts</span><strong>{{ stats.users }}</strong></a>
+  <a class="stat" href="{{ url_for('admin.users') }}"><span>Contractors</span><strong>{{ stats.contractors }}</strong></a>
+  <a class="stat" href="{{ url_for('tickets.index') }}"><span>Open tickets</span><strong>{{ stats.open_tickets }}</strong></a>
+  <a class="stat" href="{{ url_for('admin.payroll') }}"><span>E Coin in wallets</span><strong class="sm">{{ stats.ec_supply | money }} EC</strong></a>
+</div>
+<section class="card flush">
+  <div class="card-head pad"><h2>Recent sign-ins</h2></div>
+  <table class="table">
+    <thead><tr><th>User</th><th>Role</th><th>Last sign-in</th></tr></thead>
+    <tbody>
+      {% for u in recent_logins %}
+      <tr><td><a href="{{ url_for('admin.edit_user', user_id=u.id) }}">{{ u.full_name }}</a></td><td>{{ ROLE_LABELS[u.role] }}</td><td class="muted">{{ u.last_login }}</td></tr>
+      {% else %}
+      <tr><td colspan="3" class="muted center">No sign-ins recorded.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

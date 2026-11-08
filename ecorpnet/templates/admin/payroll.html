@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Payroll{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Payroll</h1><p class="muted">Monthly E Coin salary disbursement from the E Corp treasury.</p></div></div>
+<div class="grid-main">
+  <section class="card flush">
+    <div class="card-head pad"><h2>Payroll history</h2></div>
+    <table class="table">
+      <thead><tr><th>Period</th><th>Employees</th><th class="right">Total (EC)</th><th>Run by</th><th>Processed</th></tr></thead>
+      <tbody>
+        {% for r in runs %}
+        <tr><td><strong>{{ r.period }}</strong></td><td>{{ r.employees }}</td><td class="right">{{ r.total | money }}</td><td>{{ r.run_by_name }}</td><td class="muted">{{ r.created_at | short_dt }}</td></tr>
+        {% else %}
+        <tr><td colspan="5" class="muted center">No payroll runs yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  <aside class="card">
+    <h2>Run payroll</h2>
+    <p class="muted small">{{ monthly[0] }} salaried employees · {{ monthly[1] | money }} EC per month</p>
+    <form method="post" data-confirm="Disburse salaries for this period?">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Period<input type="month" name="period" value="{{ current_period }}" required></label>
+      <button class="btn block" type="submit">Disburse salaries</button>
+    </form>
+  </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Error {{ code }}{% endblock %}
+{% macro body() %}
+  <div class="card error-card">
+    <div class="error-code">{{ code }}</div>
+    <h1>{{ error.name }}</h1>
+    <p class="muted">{{ error.description }}</p>
+    <a class="btn" href="{{ url_for('main.dashboard') }}">Back to ECorpNet</a>
+  </div>
+{% endmacro %}
+{% block content %}{{ body() }}{% endblock %}
+{% block auth %}{{ body() }}{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ person.full_name }}{% endblock %}
+{% block content %}
+<div class="profile-head card">
+  <span class="avatar xl" style="background: {{ person.id | avatar_color }}">{{ person.full_name | initials }}</span>
+  <div class="grow">
+    <h1>{{ person.full_name }} {% if not person.is_active %}<span class="badge muted-badge">Inactive</span>{% endif %}</h1>
+    <p class="muted">{{ person.title }} · {{ person.department }}</p>
+    <span class="tag">{{ ROLE_LABELS[person.role] }}</span>
+  </div>
+  {% if person.id == g.user.id %}<a class="btn ghost" href="{{ url_for('directory.edit_profile') }}">Edit profile</a>{% endif %}
+  {% if g.user.role == 'admin' %}<a class="btn ghost" href="{{ url_for('admin.edit_user', user_id=person.id) }}">Manage</a>{% endif %}
+</div>
+
+<div class="grid-main">
+  <section class="card">
+    <h2>About</h2>
+    <p>{{ person.bio or 'No bio yet.' }}</p>
+    <dl class="details">
+      <dt>Username</dt><dd>{{ person.username }}</dd>
+      <dt>Email</dt><dd><a href="mailto:{{ person.email }}">{{ person.email }}</a></dd>
+      <dt>Phone</dt><dd>{{ person.phone or '—' }}</dd>
+      <dt>Office</dt><dd>{{ person.office or '—' }}</dd>
+      <dt>Joined E Corp</dt><dd>{{ person.hired_at }}</dd>
+      {% if can_see_comp %}
+      <dt>Annual salary</dt><dd>{{ '{:,}'.format(person.salary) }} EC</dd>
+      <dt>Wallet balance</dt><dd>{{ person.balance | money }} EC</dd>
+      {% endif %}
+    </dl>
+  </section>
+  <div class="stack">
+    <section class="card">
+      <h2>Reports to</h2>
+      {% if manager %}
+      <a class="person-row" href="{{ url_for('directory.profile', user_id=manager.id) }}">
+        <span class="avatar sm" style="background: {{ manager.id | avatar_color }}">{{ manager.full_name | initials }}</span>
+        <span><strong>{{ manager.full_name }}</strong><small class="muted">{{ manager.title }}</small></span>
+      </a>
+      {% else %}<p class="muted">—</p>{% endif %}
+    </section>
+    <section class="card">
+      <h2>Direct reports</h2>
+      {% for r in reports %}
+      <a class="person-row" href="{{ url_for('directory.profile', user_id=r.id) }}">
+        <span class="avatar sm" style="background: {{ r.id | avatar_color }}">{{ r.full_name | initials }}</span>
+        <span><strong>{{ r.full_name }}</strong><small class="muted">{{ r.title }}</small></span>
+      </a>
+      {% else %}<p class="muted">None</p>{% endfor %}
+    </section>
+  </div>
+</div>
+{% endblock %}

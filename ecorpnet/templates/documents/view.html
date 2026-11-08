@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ doc.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="muted"><a href="{{ url_for('documents.index') }}">HR Documents</a> / {{ doc.category }}</p>
+    <h1>{{ doc.title }}</h1>
+    <p class="muted">{{ doc.description }}</p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('documents.download', doc_id=doc.id) }}">Download</a>
+    {% if g.user.role == 'admin' or doc.uploaded_by == g.user.id %}
+    <form method="post" action="{{ url_for('documents.delete', doc_id=doc.id) }}" data-confirm="Delete this document?">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn danger" type="submit">Delete</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+<div class="meta-row">
+  <span class="clearance {{ doc.clearance }}">{{ CLEARANCE_LABELS[doc.clearance] }}</span>
+  <span class="muted">{{ doc.original_name }} · {{ (doc.size / 1024) | round(1) }} KB · {{ doc.uploader_name }} · {{ doc.created_at | short_dt }}</span>
+</div>
+<section class="card">
+  {% if content is not none %}
+  <pre class="doc">{{ content }}</pre>
+  {% else %}
+  <p class="muted">Preview is not available for this file type. Use Download to open it.</p>
+  {% endif %}
+</section>
+{% endblock %}

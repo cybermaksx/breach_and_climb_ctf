@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Announcements{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Announcements</h1><p class="muted">Shown on every employee's dashboard.</p></div></div>
+<div class="grid-main">
+  <section class="card">
+    {% for a in items %}
+    <article class="announcement {{ 'pinned' if a.pinned }}">
+      <header>{% if a.pinned %}<span class="badge">Pinned</span>{% endif %}<h3>{{ a.title }}</h3></header>
+      <p>{{ a.body }}</p>
+      <footer class="row-between">
+        <span class="muted">{{ a.author_name }} · {{ a.created_at | short_dt }}</span>
+        <form method="post" action="{{ url_for('admin.delete_announcement', item_id=a.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn danger sm" type="submit">Remove</button>
+        </form>
+      </footer>
+    </article>
+    {% else %}<p class="muted">No announcements.</p>{% endfor %}
+  </section>
+  <aside class="card">
+    <h2>New announcement</h2>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Title<input name="title" required maxlength="200"></label>
+      <label>Message<textarea name="body" rows="6" required></textarea></label>
+      <label class="check"><input type="checkbox" name="pinned"> Pin to top</label>
+      <button class="btn block" type="submit">Publish</button>
+    </form>
+  </aside>
+</div>
+{% endblock %}

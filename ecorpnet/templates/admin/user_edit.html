@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ user.full_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><p class="muted"><a href="{{ url_for('admin.users') }}">Users</a> / {{ user.username }}</p><h1>{{ user.full_name }}</h1></div>
+  <a class="btn ghost" href="{{ url_for('directory.profile', user_id=user.id) }}">View profile</a>
+</div>
+<section class="card narrow">
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="grid-2">
+      <label>Full name<input name="full_name" value="{{ user.full_name }}" required></label>
+      <label>Email<input name="email" type="email" value="{{ user.email }}" required></label>
+      <label>Department<input name="department" value="{{ user.department }}" required></label>
+      <label>Title<input name="title" value="{{ user.title }}" required></label>
+      <label>Role<select name="role">{% for r in roles %}<option value="{{ r }}" {{ 'selected' if r == user.role }}>{{ ROLE_LABELS[r] }}</option>{% endfor %}</select></label>
+      <label>Manager<select name="manager_id"><option value="">None</option>
+        {% for m in managers %}<option value="{{ m.id }}" {{ 'selected' if m.id == user.manager_id }}>{{ m.full_name }}</option>{% endfor %}</select></label>
+      <label>Annual salary (EC)<input name="salary" type="number" min="0" step="1000" value="{{ user.salary }}"></label>
+      <label>Reset password<input name="new_password" type="password" minlength="8" placeholder="Leave empty to keep" autocomplete="new-password"></label>
+    </div>
+    <label class="check"><input type="checkbox" name="is_active" {{ 'checked' if user.is_active }}> Account active</label>
+    <button class="btn" type="submit">Save changes</button>
+  </form>
+</section>
+<p class="muted small">Created {{ user.created_at }} · Last sign-in {{ user.last_login or 'never' }} · Balance {{ user.balance | money }} EC</p>
+{% endblock %}

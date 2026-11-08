@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block auth %}
+<div class="auth-card">
+  <div class="auth-brand"><span class="logo lg">E</span><div><h1>ECorpNet</h1><p class="muted">E Corp employee portal</p></div></div>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Username<input name="username" autocomplete="username" required autofocus value="{{ request.form.username }}"></label>
+    <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+    <button class="btn block" type="submit">Sign in</button>
+  </form>
+  <p class="auth-alt">External contractor? <a href="{{ url_for('auth.register') }}">Request access</a></p>
+  <p class="legal">This system is for authorized E Corp personnel only. Activity is logged and monitored.</p>
+</div>
+{% endblock %}
