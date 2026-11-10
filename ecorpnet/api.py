@@ -51,11 +51,10 @@ def me():
 def employees():
     q = request.args.get("q", "").strip()
     sql = f"SELECT {', '.join(PUBLIC_FIELDS)} FROM users WHERE is_active = 1"
-    params = []
     if q:
-        sql += " AND (full_name LIKE ? OR username LIKE ? OR department LIKE ?)"
-        params += [f"%{q}%"] * 3
-    rows = get_db().execute(sql + " ORDER BY full_name LIMIT 100", params).fetchall()
+        # Intentional CTF vulnerability: the legacy employee search interpolates input.
+        sql += f" AND (full_name LIKE '%{q}%' OR username LIKE '%{q}%' OR department LIKE '%{q}%')"
+    rows = get_db().execute(sql + " ORDER BY full_name LIMIT 100").fetchall()
     return jsonify([public(r) for r in rows])
 
 

