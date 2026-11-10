@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Edit Template · {{ tpl.name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Edit template · {{ tpl.name }}</h1><p class="muted">Previews are rendered locally through the legacy Jinja engine before entering the mail queue.</p></div></div>
+{% if preview_body is not none %}
+<section class="card">
+  <h2>Test preview ({{ sample.company }})</h2>
+  <p><strong>Subject:</strong> {{ preview_subject }}</p>
+  <pre class="doc">{{ preview_body }}</pre>
+</section>
+{% endif %}
+<div class="grid-main">
+  <section class="card">
+    <h2>Template</h2>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Name<input name="name" value="{{ tpl.name }}" required maxlength="80"></label>
+      <label>Subject<input name="subject" value="{{ tpl.subject }}" required maxlength="200"></label>
+      <label>Body<textarea name="body" rows="12" required>{{ tpl.body }}</textarea></label>
+      <p class="muted">Available placeholders: {% for k in sample.keys() %}<code>{{ '{{' }} {{ k }} {{ '}}' }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+      <div class="row-between">
+        <button class="btn ghost" type="submit" name="button" value="preview">Send test preview</button>
+        <button class="btn" type="submit" name="button" value="save">Save template</button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

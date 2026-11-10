@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Email Templates{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Email Templates</h1><p class="muted">Bulk-mail templates rendered by the legacy Jinja engine of the mail queue.</p></div></div>
+<div class="grid-main">
+  <section class="card">
+    {% for t in items %}
+    <article class="announcement">
+      <header><h3>{{ t.name }}</h3></header>
+      <p><strong>{{ t.subject }}</strong></p>
+      <footer class="row-between">
+        <span class="muted">Updated by {{ t.updated_by_name }} · {{ t.updated_at | short_dt }}</span>
+        <form method="post" action="{{ url_for('comms.delete', tpl_id=t.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn danger sm" type="submit">Remove</button>
+        </form>
+      </footer>
+      <p><a class="btn sm" href="{{ url_for('comms.edit', tpl_id=t.id) }}">Open editor</a></p>
+    </article>
+    {% else %}<p class="muted">No templates.</p>{% endfor %}
+  </section>
+  <aside class="card">
+    <h2>New template</h2>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Name<input name="name" required maxlength="80"></label>
+      <label>Subject<input name="subject" required maxlength="200"></label>
+      <label>Body textarea (Jinja placeholders allowed)<textarea name="body" rows="8" required></textarea></label>
+      <p class="muted">Available placeholders: {% for k in sample.keys() %}<code>{{ '{{' }} {{ k }} {{ '}}' }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+      <button class="btn block" type="submit">Create template</button>
+    </form>
+  </aside>
+</div>
+{% endblock %}

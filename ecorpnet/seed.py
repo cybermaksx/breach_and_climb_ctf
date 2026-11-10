@@ -67,6 +67,18 @@ ANNOUNCEMENTS = [
      "for internal tooling (/api/v1). Please report any issues to the IT Helpdesk.", 0),
 ]
 
+COMMS_TEMPLATES = [
+    ("welcome_new_hire", "Welcome to E Corp",
+     "Hello {{ full_name }},\n\n"
+     "Welcome to E Corp. A single sign-on account has been created for you and your first payroll in E Coin "
+     "is scheduled for the end of the month.\n\n"
+     "Regards,\nThe Human Resources Team"),
+    ("ecoin_monthly_notice", "Your E Coin payroll has been deposited",
+     "Hello {{ full_name }},\n\nThe monthly payroll for your department {{ department }} "
+     "has been deposited to your E Corp wallet. Current balance: {{ balance }} EC.\n\n"
+     "E Corp Treasury"),
+]
+
 TICKETS = [
     ("twellick", "pnair", "Strange process consuming CPU on CS30 server", "Security Incident", "critical",
      "in_progress",
@@ -188,6 +200,12 @@ def seed(db, documents_dir):
         db.execute(
             "INSERT INTO announcements (author_id, title, body, pinned) VALUES (?, ?, ?, ?)",
             (ids[author], title, body, pinned),
+        )
+
+    for name, subject, body in COMMS_TEMPLATES:
+        db.execute(
+            "INSERT INTO comms_templates (name, subject, body, updated_by) VALUES (?, ?, ?, ?)",
+            (name, subject, body, ids["pprice"]),
         )
 
     for author, assignee, subject, category, priority, status, body, comments in TICKETS:

@@ -41,7 +41,7 @@ pages = ["/", "/directory", "/directory/1", "/directory?q=tyrell", "/profile", "
          "/documents/", "/wallet/", "/api/v1/", "/api/v1/me", "/api/v1/employees", "/api/v1/employees/2", "/api/v1/wallet", "/api/v1/tickets"]
 
 # admin
-c = app.test_client(); login(c, "pprice", "Pr1ce-0f-P0wer#1987")
+c = app.test_client(); login(c, "pprice", "bowwow")
 for p in pages + ["/reports/", "/admin/", "/admin/users", "/admin/users/9", "/admin/announcements", "/admin/payroll", "/tickets/1", "/documents/5"]:
     get(c, p)
 for t in ["headcount", "tickets", "payroll", "wallet"]:

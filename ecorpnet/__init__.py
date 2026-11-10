@@ -35,12 +35,12 @@ def create_app(test_config=None):
         app.config.update(test_config)
     os.makedirs(app.config["DOCUMENTS_DIR"], exist_ok=True)
 
-    from . import admin, api, auth, db, directory, documents, main, reports, security, tickets, utils, wallet
+    from . import admin, api, auth, comms, db, directory, documents, main, reports, security, tickets, utils, wallet
 
     db.init_app(app)
     utils.init_app(app)
 
-    for module in (auth, main, directory, tickets, documents, wallet, reports, admin, api):
+    for module in (auth, main, directory, tickets, documents, wallet, reports, admin, comms, api):
         app.register_blueprint(module.bp)
 
     # Registered after the blueprints so g.user is already loaded when CSRF validation fails.

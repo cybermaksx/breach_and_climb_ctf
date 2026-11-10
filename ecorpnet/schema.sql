@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS comms_templates;
 DROP TABLE IF EXISTS reports;
 DROP TABLE IF EXISTS announcements;
 DROP TABLE IF EXISTS documents;
@@ -101,6 +102,15 @@ CREATE TABLE announcements (
     body       TEXT NOT NULL,
     pinned     INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE comms_templates (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT UNIQUE NOT NULL,
+    subject    TEXT NOT NULL,
+    body       TEXT NOT NULL,
+    updated_by INTEGER REFERENCES users (id),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE reports (

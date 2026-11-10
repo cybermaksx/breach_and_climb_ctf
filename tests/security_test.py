@@ -49,7 +49,7 @@ def tok(c):
 def post(c, url, data, **kw):
     data = dict(data); data.setdefault("csrf_token", tok(c)); return c.post(url, data=data, **kw)
 
-admin = client("pprice", "Pr1ce-0f-P0wer#1987")
+admin = client("pprice", "bowwow")
 emp = client("amoss", "Wash1ngton-Twp-1993")
 mgr = client("twellick", "Joanna&Me-Forever09")
 anon = new_client()
@@ -133,6 +133,19 @@ check("manager -> doc delete not own", post(mgr, "/documents/1/delete", {}).stat
 admin_rep = post(admin, "/reports/", {"title":"a","report_type":"payroll","date_from":"2000-01-01","date_to":"2030-01-01","department":""}).headers["Location"]
 check("manager -> admin report IDOR", mgr.get(admin_rep).status_code == 403)
 check("manager -> admin report CSV", mgr.get(admin_rep + "/export.csv").status_code == 403)
+
+# --- comms templates (stage-2 CTF: SSTI via render_template_string is intentionally open for admins only)
+check("contractor -> comms templates", con.get("/admin/comms/").status_code in (302, 403), f"login redirect/403")
+check("employee -> comms templates", emp.get("/admin/comms/").status_code in (302, 403))
+check("manager -> comms templates", mgr.get("/admin/comms/").status_code == 403)
+check("anon -> comms templates", new_client().get("/admin/comms/").status_code == 302)
+r = post(admin, "/admin/comms/1", {"name": "welcome_new_hire", "subject": "s", "body": "{{ 26 * 255 }}", "button": "preview"})
+check("comms preview SSTI renders for admin (intended hole)", r.status_code == 200 and b"6630" in r.data, r.status_code)
+r = post(admin, "/admin/comms/", {"title": "x", "body": "{{ 26 * 255 }}", "pinned": "1"})
+dash = emp.get("/")
+check("SSTI does NOT render outside comms preview", b"6630" not in dash.data, r.status_code)
+r = post(admin, "/admin/comms/1", {"name": "welcome_new_hire", "subject": "{{ bad<body", "body": "{% for x in %}", "button": "preview"})
+check("comms preview template error → no 500", r.status_code == 200, r.status_code)
 r = post(mgr, "/reports/", {"title":"b","report_type":"payroll","date_from":"2000-01-01","date_to":"2030-01-01","department":"Executive"})
 check("manager -> other dept payroll", b"Phillip Price" not in mgr.get(r.headers["Location"]).data)
 r = emp.get("/directory/1"); check("employee sees CEO salary", b"1,200,000" not in r.data)
