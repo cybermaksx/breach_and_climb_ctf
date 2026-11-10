@@ -6,6 +6,7 @@ update the matching checks so only the intended holes are open.
 Run: python3 tests/security_test.py
 """
 import io
+import itertools
 import re
 import stat
 import threading
@@ -27,10 +28,17 @@ with app.app_context():
     seed(get_db(), app.config["DOCUMENTS_DIR"])
 app.config["PROPAGATE_EXCEPTIONS"] = False
 R = []
+_ip = itertools.count(1)
+def new_client():
+    """Test client with its own source IP (rate limits are per IP)."""
+    n = next(_ip)
+    c = app.test_client()
+    c.environ_base["REMOTE_ADDR"] = f"10.{n // 65536}.{n // 256 % 256}.{n % 256}"
+    return c
 def check(name, ok, info=""):
     R.append((("OK  " if ok else "VULN"), name, info))
 def client(u=None, p=None):
-    c = app.test_client()
+    c = new_client()
     if u:
         with c.session_transaction() as s: s["_csrf"] = "t"
         r = c.post("/login", data={"username": u, "password": p, "csrf_token": "t"}); assert r.status_code == 302
@@ -44,7 +52,7 @@ def post(c, url, data, **kw):
 admin = client("pprice", "Pr1ce-0f-P0wer#1987")
 emp = client("amoss", "Wash1ngton-Twp-1993")
 mgr = client("twellick", "Joanna&Me-Forever09")
-anon = app.test_client()
+anon = new_client()
 # contractor with XSS / formula name
 with anon.session_transaction() as s: s["_csrf"] = "t"
 xss = '<script>alert(1)</script>"><img src=x onerror=alert(1)>'
@@ -54,7 +62,7 @@ con = client("evil", "password123")
 # --- auth / session
 r = anon.get("/login?next=x"); 
 for nxt in ["//evil.com", "/\\evil.com", "/\t/evil.com", "https://evil.com"]:
-    c = app.test_client()
+    c = new_client()
     with c.session_transaction() as s: s["_csrf"] = "t"
     r = c.post("/login?next=" + nxt, data={"username": "evil", "password": "password123", "csrf_token": "t"})
     loc = r.headers.get("Location", "")
@@ -67,11 +75,11 @@ r = post(con, "/logout", {}); check("logout via POST works", r.status_code == 30
 con = client("evil", "password123")
 # stolen cookie survives logout?
 c = client("evil", "password123"); cookie = c.get_cookie("session").value
-post(c, "/logout", {}); c2 = app.test_client(); c2.set_cookie("session", cookie)
+post(c, "/logout", {}); c2 = new_client(); c2.set_cookie("session", cookie)
 check("old session cookie after logout/pw change revoked", c2.get("/").status_code == 302, "stateless cookie still valid" )
 con = client("evil", "password123")
 # brute force
-c = app.test_client()
+c = new_client()
 with c.session_transaction() as s: s["_csrf"] = "t"
 codes = [c.post("/login", data={"username": "amoss", "password": f"x{i}", "csrf_token": "t"}).status_code for i in range(30)]
 check("login brute-force rate limit", 429 in codes, f"30 attempts → {set(codes)}")
@@ -95,7 +103,7 @@ r = emp.get("/wallet/")
 check("X-Frame-Options (clickjacking)", "X-Frame-Options" in r.headers or "frame-ancestors" in r.headers.get("Content-Security-Policy",""))
 check("X-Content-Type-Options", r.headers.get("X-Content-Type-Options") == "nosniff")
 sc = [h for h in emp.get("/").headers.getlist("Set-Cookie")] 
-c = app.test_client()
+c = new_client()
 with c.session_transaction() as s: s["_csrf"]="t"
 r = c.post("/login", data={"username":"amoss","password":"Wash1ngton-Twp-1993","csrf_token":"t"})
 setc = r.headers.get("Set-Cookie","")
@@ -179,6 +187,98 @@ check("instance dir private", not (m & 0o077), oct(m))
 import sqlite3; d = sqlite3.connect(app.config["DATABASE"]); sn = d.execute("select stored_name from documents where id=1").fetchone()[0]
 p = os.path.join(app.config["DOCUMENTS_DIR"], sn); os.rename(p, p+".bak")
 r = emp.get("/documents/1"); check("missing file → no 500", r.status_code != 500, r.status_code); os.rename(p+".bak", p)
+
+
+# =====================================================================
+# Review #2
+# =====================================================================
+def fresh_ip_client():
+    c = new_client()
+    with c.session_transaction() as s: s["_csrf"] = "t"
+    return c
+USERS = ["pprice", "tcolby", "twellick", "sknowles", "pnair", "dlin", "kdoyle", "rhale", "amoss", "hcole",
+         "mwebb", "lchen", "ogrant", "rstone", "jkim"]
+
+# password spraying: one IP, one password per user, many users
+c = fresh_ip_client()
+codes = [c.post("/login", data={"username": u, "password": pw, "csrf_token": "t"}).status_code
+         for pw in ["Password1", "Summer2015!", "Ecorp123!", "Welcome1"] for u in USERS]
+check("password spraying limited per IP", 429 in codes, {x: codes.count(x) for x in set(codes)})
+# blocked IP cannot log in even with the right password; another IP can
+r = c.post("/login", data={"username": "amoss", "password": "Wash1ngton-Twp-1993", "csrf_token": "t"})
+check("blocked IP stays blocked with valid password", r.status_code == 429)
+check("other IP not affected", client("amoss", "Wash1ngton-Twp-1993").get("/").status_code == 200)
+# login_attempts table cannot be flooded
+c = fresh_ip_client()
+for i in range(200):
+    c.post("/login", data={"username": f"junk{i}", "password": "x", "csrf_token": "t"})
+with app.app_context():
+    rows = get_db().execute("SELECT COUNT(*) FROM login_attempts WHERE ip = ?", (c.environ_base["REMOTE_ADDR"],)).fetchone()[0]
+check("login_attempts flood bounded", rows <= 30, rows)
+
+# session lifetime
+check("session cookie lifetime <= 1 day", app.permanent_session_lifetime.total_seconds() <= 86400,
+      app.permanent_session_lifetime)
+
+# manager reports must not leak compensation of peers / superiors
+tw = client("twellick", "Joanna&Me-Forever09")
+r = post(tw, "/reports/", {"title": "p", "report_type": "payroll", "date_from": "2000-01-01", "date_to": "2030-01-01"})
+d = tw.get(r.headers["Location"]).data
+check("manager payroll: no boss salary", b"Terry Colby" not in d and b"650,000" not in d)
+check("manager payroll: no peer salary", b"Scott Knowles" not in d)
+check("manager payroll: own row present", b"Tyrell Wellick" in d)
+csvd = tw.get(r.headers["Location"] + "/export.csv").data
+check("manager payroll CSV: no boss salary", b"Terry Colby" not in csvd)
+r = post(tw, "/reports/", {"title": "w", "report_type": "wallet", "date_from": "2000-01-01", "date_to": "2030-01-01"})
+d = tw.get(r.headers["Location"]).data
+check("manager wallet report: largest payroll is not the boss's", b"54,166.66" not in d)
+tc = client("tcolby", "C0lby!CTO-Golf94")
+r = post(tc, "/reports/", {"title": "p", "report_type": "payroll", "date_from": "2000-01-01", "date_to": "2030-01-01"})
+d = tc.get(r.headers["Location"]).data
+check("CTO payroll: sees his reports", b"Tyrell Wellick" in d and b"Scott Knowles" in d)
+check("CTO payroll: no CEO salary", b"Phillip Price" not in d)
+r = post(admin, "/reports/", {"title": "p", "report_type": "payroll", "date_from": "2000-01-01", "date_to": "2030-01-01", "department": ""})
+d = admin.get(r.headers["Location"]).data
+check("admin payroll: sees everyone", b"Phillip Price" in d and b"Rachel Stone" in d)
+# manager cannot widen scope by sending department / scope fields
+r = post(tw, "/reports/", {"title": "p", "report_type": "payroll", "date_from": "2000-01-01", "date_to": "2030-01-01",
+                           "department": "", "scope_user_id": "", "author_id": "1"})
+d = tw.get(r.headers["Location"]).data
+check("manager cannot override report scope", b"Phillip Price" not in d and b"Terry Colby" not in d)
+
+# admin: salary bounds, no 500
+for sal in ["9" * 30, str(2 ** 62), "-5"]:
+    r = post(admin, "/admin/users/13", {"full_name": "Oliver Grant", "email": "ogrant@e-corp.com", "role": "employee",
+                                        "department": "Finance", "title": "Financial Analyst", "salary": sal, "is_active": "on"})
+    check(f"admin salary {sal[:12]}… rejected without 500", r.status_code == 200 and b"Invalid" in r.data, r.status_code)
+
+# concurrent transfers: no 500s, no double spend
+lc_ip = []
+def go(res):
+    c = client("lchen", "EC0in-Ledger-2008")
+    res.append(post(c, "/wallet/transfer", {"recipient": "ogrant", "amount": "1"}).status_code)
+res = []
+ths = [threading.Thread(target=go, args=(res,)) for _ in range(20)]
+[t.start() for t in ths]; [t.join() for t in ths]
+check("20 parallel transfers: no server errors", res.count(302) == 20, {x: res.count(x) for x in set(res)})
+with app.app_context():
+    db = get_db()
+    total_bal = db.execute("SELECT SUM(balance) FROM users").fetchone()[0]
+    minted = db.execute("SELECT SUM(amount) FROM transactions WHERE kind = 'payroll'").fetchone()[0]
+check("E Coin conserved (sum of balances == payroll minted)", total_bal == minted, f"{total_bal} vs {minted}")
+
+# self-registration hardening
+def register(c, username, email, name="Phillip Price"):
+    return c.post("/register", data={"csrf_token": "t", "username": username, "full_name": name, "email": email,
+                                      "password": "password123", "confirm": "password123"})
+c = fresh_ip_client()
+check("register with @e-corp.com email blocked", b"already have an account" in register(c, "pprice2", "ceo@e-corp.com").data)
+check("register with sub.e-corp.com email blocked", b"already have an account" in register(c, "pprice3", "a@mail.e-corp.com").data)
+for name in ["admin", "admin2", "it-helpdesk", "helpdesk", "security", "payroll", "root"]:
+    check(f"reserved username {name!r} blocked", b"reserved" in register(c, name, f"{name}@x.io").data)
+c = fresh_ip_client()
+codes = [register(c, f"spam{i}", f"spam{i}@x.io", "Spam").status_code for i in range(8)]
+check("registration rate limit per IP", codes.count(302) == 5 and codes[-1] == 429, codes)
 
 for st, n, i in R:
     print(st, n, ("  ["+str(i)+"]") if i != "" else "")

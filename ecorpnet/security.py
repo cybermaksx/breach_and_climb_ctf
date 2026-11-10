@@ -1,5 +1,6 @@
 """Session-bound CSRF protection and HTTP security headers."""
 import hmac
+from datetime import timedelta
 import secrets
 
 from flask import abort, request, session
@@ -18,6 +19,9 @@ def get_csrf_token():
 
 def init_app(app):
     app.config["SESSION_COOKIE_HTTPONLY"] = True
+    # Signed session cookies are rejected once older than this (Flask default is 31 days).
+    if app.config["PERMANENT_SESSION_LIFETIME"] == timedelta(days=31):
+        app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=12)
     if app.config.get("SESSION_COOKIE_SAMESITE") is None:  # Flask's default is None
         app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 

@@ -28,6 +28,8 @@ flask --app ecorpnet init-db      # recreates DB + seed data, prints demo accoun
 flask --app ecorpnet run --debug  # http://127.0.0.1:5000
 ```
 
+> **Never use `--debug` on the CTF server**: the Werkzeug debugger is remote code execution.
+
 Data lives in `instance/` (SQLite DB, uploaded documents, generated `secret_key`).
 `init-db` wipes and reseeds everything — handy for resetting the box between CTF rounds.
 

@@ -32,7 +32,7 @@
       {% if g.user.role == 'admin' %}
       <label>Department<select name="department"><option value="">All departments</option>{% for d in departments %}<option>{{ d }}</option>{% endfor %}</select></label>
       {% else %}
-      <p class="muted small">Scope: <strong>{{ g.user.department }}</strong> (your department)</p>
+      <p class="muted small">Scope: <strong>{{ g.user.department }}</strong> (your department). Payroll and E Coin reports include only you and your reporting chain.</p>
       {% endif %}
       <div class="grid-2">
         <label>From<input type="date" name="date_from" value="{{ default_from }}" required></label>

@@ -10,6 +10,8 @@ from .wallet import WalletError, run_payroll
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
+MAX_SALARY = 100_000_000  # whole E Coin per year
+
 
 @bp.route("/")
 @roles_required("admin")
@@ -62,7 +64,7 @@ def edit_user(user_id):
             salary, manager_id = -1, None
         if manager_id is not None and not db.execute("SELECT 1 FROM users WHERE id = ?", (manager_id,)).fetchone():
             manager_id = None
-        if role not in ROLE_LEVEL or not EMAIL_RE.match(email) or salary < 0:
+        if role not in ROLE_LEVEL or not EMAIL_RE.match(email) or not 0 <= salary <= MAX_SALARY:
             flash("Invalid role, email or salary.", "error")
         elif user_id == g.user["id"] and (role != "admin" or not is_active):
             flash("You cannot demote or disable your own account.", "error")

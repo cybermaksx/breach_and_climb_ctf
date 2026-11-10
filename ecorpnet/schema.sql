@@ -36,7 +36,8 @@ CREATE TABLE users (
     session_epoch INTEGER NOT NULL DEFAULT 0,      -- bump to revoke all session cookies
     hired_at      TEXT NOT NULL DEFAULT (date('now')),
     created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-    last_login    TEXT
+    last_login    TEXT,
+    registration_ip TEXT                           -- set for self-registered contractors
 );
 
 CREATE TABLE transactions (
@@ -111,5 +112,6 @@ CREATE TABLE reports (
     date_from   TEXT NOT NULL,
     date_to     TEXT NOT NULL,
     notes       TEXT NOT NULL DEFAULT '',
+    scope_user_id INTEGER REFERENCES users (id),  -- managers: compensation data limited to this user's team
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );

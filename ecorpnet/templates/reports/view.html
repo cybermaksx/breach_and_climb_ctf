@@ -5,7 +5,7 @@
   <div>
     <p class="muted"><a href="{{ url_for('reports.index') }}">Report Builder</a> / #{{ report.id }}</p>
     <h1>{{ report.title }}</h1>
-    <p class="muted">{{ REPORT_TYPES[report.report_type] }} · {{ report.department or 'All departments' }} · {{ report.date_from }} → {{ report.date_to }}</p>
+    <p class="muted">{{ REPORT_TYPES[report.report_type] }} · {{ report.department or 'All departments' }}{% if report.scope_user_id and report.report_type in ('payroll', 'wallet') %} · {{ report.author_name }}'s team{% endif %} · {{ report.date_from }} → {{ report.date_to }}</p>
   </div>
   <div class="actions">
     <a class="btn" href="{{ url_for('reports.export', report_id=report.id) }}">Export CSV</a>

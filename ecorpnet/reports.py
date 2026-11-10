@@ -45,9 +45,20 @@ def get_report(report_id):
     return report
 
 
+# All users reporting (directly or indirectly) to ? plus that user. UNION (not UNION ALL) stops on cycles.
+TEAM_CTE = (
+    "WITH RECURSIVE team(id) AS (SELECT ? UNION SELECT u.id FROM users u JOIN team t ON u.manager_id = t.id) "
+)
+
+
 def build_report(report):
-    """Return {'columns': [...], 'rows': [[...]], 'summary': [(label, value)]} for a saved report."""
+    """Return {'columns': [...], 'rows': [[...]], 'summary': [(label, value)]} for a saved report.
+
+    Reports created by managers carry scope_user_id: compensation data (payroll, E Coin) is then
+    limited to that manager's own reporting chain, so nobody sees the pay of peers or superiors.
+    """
     db = get_db()
+    scope = report["scope_user_id"]
     dept = report["department"]
     d_from, d_to = report["date_from"], report["date_to"]
     kind = report["report_type"]
@@ -91,12 +102,16 @@ def build_report(report):
 
     if kind == "payroll":
         sql = (
-            "SELECT u.full_name, u.title, u.department, u.salary,"
+            (TEAM_CTE if scope else "")
+            + "SELECT u.full_name, u.title, u.department, u.salary,"
             " COALESCE((SELECT SUM(amount) FROM transactions t WHERE t.recipient_id = u.id AND t.kind = 'payroll'"
             "  AND date(t.created_at) BETWEEN ? AND ?), 0)"
             " FROM users u WHERE u.is_active = 1 AND u.role != 'contractor'"
         )
-        params = [d_from, d_to]
+        params = [scope] if scope else []
+        params += [d_from, d_to]
+        if scope:
+            sql += " AND u.id IN (SELECT id FROM team)"
         if dept:
             sql += " AND u.department = ?"
             params.append(dept)
@@ -114,10 +129,14 @@ def build_report(report):
 
     if kind == "wallet":
         sql = (
-            "SELECT t.kind, COUNT(*), SUM(t.amount), MAX(t.amount) FROM transactions t"
+            (TEAM_CTE if scope else "")
+            + "SELECT t.kind, COUNT(*), SUM(t.amount), MAX(t.amount) FROM transactions t"
             " JOIN users u ON u.id = t.recipient_id WHERE date(t.created_at) BETWEEN ? AND ?"
         )
-        params = [d_from, d_to]
+        params = [scope] if scope else []
+        params += [d_from, d_to]
+        if scope:
+            sql += " AND u.id IN (SELECT id FROM team)"
         if dept:
             sql += " AND u.department = ?"
             params.append(dept)
@@ -175,9 +194,18 @@ def create():
     else:
         db = get_db()
         cur = db.execute(
-            "INSERT INTO reports (author_id, title, report_type, department, date_from, date_to, notes)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (g.user["id"], title[:120], report_type, department, d_from, d_to, form.get("notes", "").strip()[:2000]),
+            "INSERT INTO reports (author_id, title, report_type, department, date_from, date_to, notes,"
+            " scope_user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                g.user["id"],
+                title[:120],
+                report_type,
+                department,
+                d_from,
+                d_to,
+                form.get("notes", "").strip()[:2000],
+                None if g.user["role"] == "admin" else g.user["id"],
+            ),
         )
         db.commit()
         return redirect(url_for("reports.view", report_id=cur.lastrowid))

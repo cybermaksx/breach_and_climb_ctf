@@ -21,9 +21,19 @@ ROLE_LABELS = {
 USERNAME_RE = re.compile(r"^[a-z0-9._-]{3,32}$")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
-# Brute-force protection: max failed logins per (IP, username) inside the window.
+# Brute-force protection inside the window: per (IP, username) and per IP (password spraying).
 MAX_FAILED_LOGINS = 10
+MAX_FAILED_PER_IP = 30
 LOCKOUT_WINDOW = "-10 minutes"
+# Self-registration limits.
+MAX_REGISTRATIONS_PER_IP = 5
+REGISTRATION_WINDOW = "-1 hour"
+CORPORATE_DOMAIN = "e-corp.com"
+RESERVED_USERNAMES = {
+    "admin", "administrator", "root", "system", "sysadmin", "support", "helpdesk", "it", "itsupport",
+    "security", "soc", "hr", "payroll", "finance", "legal", "ceo", "cto", "noreply", "postmaster", "ecorp",
+}
+RESERVED_PREFIXES = ("admin", "it-", "it.", "it_", "helpdesk", "support", "security", "hr-", "hr.", "payroll", "ecorp")
 # Hash checked when the username does not exist, so response time does not reveal valid usernames.
 _DUMMY_HASH = generate_password_hash("ecorpnet-dummy-password")
 
@@ -94,11 +104,16 @@ def _safe_next(target):
 
 
 def _too_many_failures(db, ip, username):
-    count = db.execute(
-        "SELECT COUNT(*) FROM login_attempts WHERE ip = ? AND username = ? AND created_at > datetime('now', ?)",
-        (ip, username, LOCKOUT_WINDOW),
-    ).fetchone()[0]
-    return count >= MAX_FAILED_LOGINS
+    per_user, per_ip = db.execute(
+        "SELECT COALESCE(SUM(username = ?), 0), COUNT(*) FROM login_attempts"
+        " WHERE ip = ? AND created_at > datetime('now', ?)",
+        (username, ip, LOCKOUT_WINDOW),
+    ).fetchone()
+    return per_user >= MAX_FAILED_LOGINS or per_ip >= MAX_FAILED_PER_IP
+
+
+def _reserved_username(username):
+    return username in RESERVED_USERNAMES or username.startswith(RESERVED_PREFIXES)
 
 
 @bp.route("/login", methods=("GET", "POST"))
@@ -149,16 +164,28 @@ def register():
         errors = []
         if not USERNAME_RE.match(username):
             errors.append("Username must be 3-32 characters: a-z, 0-9, dot, dash, underscore.")
+        elif _reserved_username(username):
+            errors.append("That username is reserved.")
         if not 2 <= len(full_name) <= 80:
             errors.append("Please enter your full name.")
         if not EMAIL_RE.match(email) or len(email) > 120:
             errors.append("Please enter a valid email address.")
+        elif email.rsplit("@", 1)[1] == CORPORATE_DOMAIN or email.endswith("." + CORPORATE_DOMAIN):
+            errors.append("E Corp employees already have an account. Contractors must use their company email.")
         if len(password) < 8:
             errors.append("Password must be at least 8 characters.")
         if password != form.get("confirm", ""):
             errors.append("Passwords do not match.")
 
         db = get_db()
+        ip = request.remote_addr or ""
+        recent = db.execute(
+            "SELECT COUNT(*) FROM users WHERE registration_ip = ? AND created_at > datetime('now', ?)",
+            (ip, REGISTRATION_WINDOW),
+        ).fetchone()[0]
+        if recent >= MAX_REGISTRATIONS_PER_IP:
+            flash("Too many accounts were created from your network. Try again later.", "error")
+            return render_template("auth/register.html", form=form), 429
         if not errors and db.execute(
             "SELECT 1 FROM users WHERE username = ? OR email = ?", (username, email)
         ).fetchone():
@@ -170,9 +197,9 @@ def register():
         else:
             title = f"External Contractor ({company[:60]})" if company else "External Contractor"
             db.execute(
-                "INSERT INTO users (username, password_hash, full_name, email, role, department, title)"
-                " VALUES (?, ?, ?, ?, 'contractor', 'Contractors', ?)",
-                (username, generate_password_hash(password), full_name, email, title),
+                "INSERT INTO users (username, password_hash, full_name, email, role, department, title,"
+                " registration_ip) VALUES (?, ?, ?, ?, 'contractor', 'Contractors', ?, ?)",
+                (username, generate_password_hash(password), full_name, email, title, ip),
             )
             db.commit()
             flash("Contractor account created. You can now sign in.", "success")

@@ -78,7 +78,7 @@ get(c3, "/reports/", 403)
 c4 = app.test_client(); login(c4, "twellick", "Joanna&Me-Forever09")
 get(c4, "/reports/"); get(c4, "/documents/4"); get(c4, "/documents/5", 403)
 r = post(c4, "/reports/", {"title": "x", "report_type": "payroll", "date_from": "2000-01-01", "date_to": "2030-01-01", "department": "Finance"})
-rr = get(c4, r.headers["Location"]); assert b"Lucy Chen" not in rr.data and b"Terry Colby" in rr.data
+rr = get(c4, r.headers["Location"]); assert b"Lucy Chen" not in rr.data and b"Terry Colby" not in rr.data and b"Tyrell Wellick" in rr.data
 # it staff
 c5 = app.test_client(); login(c5, "pnair", "Nair-Sysadm1n-NOC!")
 get(c5, "/tickets/1"); get(c5, f"/tickets/{tid}")
