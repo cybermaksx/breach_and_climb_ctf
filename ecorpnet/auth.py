@@ -2,7 +2,7 @@ import functools
 import re
 
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, session, url_for
-from werkzeug.security import check_password_hash, generate_password_hash
+from .passwords import check_password_hash, generate_password_hash
 
 from .db import get_db
 from .security import get_csrf_token
@@ -138,6 +138,10 @@ def login():
         elif not user["is_active"]:
             flash("This account has been disabled. Contact IT Operations.", "error")
         else:
+            # Preserve existing accounts while migrating their hashes on successful login.
+            if user["password_hash"] != generate_password_hash(password):
+                db.execute("UPDATE users SET password_hash = ? WHERE id = ?",
+                           (generate_password_hash(password), user["id"]))
             db.execute("DELETE FROM login_attempts WHERE ip = ? AND username = ?", (ip, username))
             db.execute("UPDATE users SET last_login = datetime('now') WHERE id = ?", (user["id"],))
             db.commit()

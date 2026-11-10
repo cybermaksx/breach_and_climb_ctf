@@ -3,14 +3,14 @@ import os
 import uuid
 from datetime import date
 
-from werkzeug.security import generate_password_hash
+from .passwords import generate_password_hash
 
 from .wallet import run_payroll, transfer
 
 # username, full name, role, department, title, salary, manager, phone, office, hired, password
 USERS = [
     ("pprice", "Phillip Price", "admin", "Executive", "Chief Executive Officer", 1200000, None,
-     "+1 212 555 0100", "Floor 62, Corner Office", "1987-03-02", "Pr1ce-0f-P0wer#1987"),
+     "+1 212 555 0100", "Floor 62, Corner Office", "1987-03-02", "bowwow"),
     ("tcolby", "Terry Colby", "manager", "Technology", "Chief Technology Officer", 650000, "pprice",
      "+1 212 555 0142", "Floor 58, 5801", "1994-06-13", "C0lby!CTO-Golf94"),
     ("twellick", "Tyrell Wellick", "manager", "Technology", "Senior Vice President of Technology", 420000, "tcolby",

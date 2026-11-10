@@ -1,7 +1,7 @@
 from datetime import date
 
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
-from werkzeug.security import generate_password_hash
+from .passwords import generate_password_hash
 
 from .auth import EMAIL_RE, ROLE_LEVEL, revoke_sessions, roles_required
 from .db import get_db
