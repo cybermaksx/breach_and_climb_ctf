@@ -26,3 +26,7 @@ rockyou*
 .vscode/
 *.swp
 .DS_Store
+
+# Local notes (credentials, scratch) - every .txt except requirements
+*.txt
+!requirements.txt
