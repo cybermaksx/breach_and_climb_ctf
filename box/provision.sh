@@ -177,11 +177,14 @@ if [[ ! -f $FLAGS ]]; then
 fi
 
 install -o root -g root -m 700 "$SRC/box/ctf-reset.sh" /usr/local/sbin/ctf-reset
+install -o root -g root -m 700 "$SRC/box/ctf-snapshot.sh" /usr/local/sbin/ctf-snapshot
+install -o root -g root -m 700 "$SRC/box/ctf-restore.sh" /usr/local/sbin/ctf-restore
 /usr/local/sbin/ctf-reset
 
 log "Done. Box is up on :80"
 echo "    flags:  $FLAGS"
 echo "    reset between rounds:  sudo ctf-reset"
+echo "    full rollback:         sudo ctf-snapshot (once, when final), then sudo ctf-restore"
 echo
 echo "    !! Before players connect: make sure no account other than pnair is"
 echo "    !! reachable with a weak password (admin users in the sudo group = free root)."
