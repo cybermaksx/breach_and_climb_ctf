@@ -1,5 +1,13 @@
 # breach_and_climb_ctf
-CTF challenge from Istanbul Hackerspace
+CTF challenge from Istanbul Hackerspace: **Breach & Climb — From Foothold to Root**.
+One box, two flags: web foothold → shell → user → root.
+
+| What | Where |
+|---|---|
+| Talk slides | [`presentation/breach-and-climb.pptx`](presentation/breach-and-climb.pptx) · [web version](https://cybermaksx.com/talks/breach-and-climb/) |
+| Build the box | [`box/provision.sh`](box/provision.sh) (Debian 13), see [The CTF box](#the-ctf-box) |
+| Solution (spoilers) | [`WALKTHROUGH.md`](WALKTHROUGH.md) · [`solve/`](solve/) · [`docs/writeup-ru.md`](docs/writeup-ru.md) |
+| Reset / rollback | [`docs/rollback-ru.md`](docs/rollback-ru.md) |
 
 ## ECorpNet — E Corp employee portal (Flask)
 
@@ -59,7 +67,7 @@ Both run against a throw-away database, the real `instance/` is not touched.
 ## The CTF box
 
 > **Spoilers below.** This README, `WALKTHROUGH.md` and `box/` describe the solution.
-> They stay in this private repo — `provision.sh` copies only the application code onto the box.
+> `provision.sh` copies only the application code onto the box, never these files.
 
 ### Path overview
 

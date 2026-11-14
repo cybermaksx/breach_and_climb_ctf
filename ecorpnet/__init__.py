@@ -3,6 +3,7 @@ import os
 import secrets
 
 from flask import Flask, render_template
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 
 def _load_secret_key(instance_path):
@@ -18,6 +19,9 @@ def _load_secret_key(instance_path):
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
+    # nginx sits in front: take the client IP from X-Forwarded-For (one proxy hop).
+    # Without this every player is 127.0.0.1 and shares one rate-limit bucket.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
     # DB, secret key and documents live here: keep them unreadable for other local users.
     os.makedirs(app.instance_path, mode=0o700, exist_ok=True)
     try:

